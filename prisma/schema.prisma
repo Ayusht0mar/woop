@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String  @map("user_id")
+  type               String
+  provider           String
+  providerAccountId  String  @map("provider_account_id")
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+ 
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@map("sessions")
+}
+ 
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  annualTasks AnnualTask[]
+
+  @@map("users")
+}
+
+
+model AnnualTask {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  userId      String
+  User        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  QuarterlyTasks QuarterlyTask[]
+
+  @@map("annual_tasks") // Optional table name mapping
+}
+
+model QuarterlyTask {
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  annualTaskId Int
+  AnnualTask   AnnualTask     @relation(fields: [annualTaskId], references: [id], onDelete: Cascade)
+  MonthlyTasks MonthlyTask[]
+
+  @@map("quarterly_tasks") // Optional table name mapping
+}
+
+model MonthlyTask {
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  quarterlyTaskId Int
+  QuarterlyTask QuarterlyTask  @relation(fields: [quarterlyTaskId], references: [id], onDelete: Cascade)
+  WeeklyTasks   WeeklyTask[]
+
+  @@map("monthly_tasks") // Optional table name mapping
+}
+
+model WeeklyTask {
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  monthlyTaskId Int
+  MonthlyTask  MonthlyTask    @relation(fields: [monthlyTaskId], references: [id], onDelete: Cascade)
+  Tasks        Task[]
+
+  @@map("weekly_tasks") // Optional table name mapping
+}
+
+model Task {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  weeklyTaskId Int
+  status TaskStatus @default(PENDING)
+
+  WeeklyTask  WeeklyTask     @relation(fields: [weeklyTaskId], references: [id], onDelete: Cascade)
+
+  @@map("tasks") // Optional table name mapping
+}
+
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
